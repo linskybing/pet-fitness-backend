@@ -19,7 +19,10 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (change to specific origins in production)
+    allow_origins=[
+        "https://tamagotchi-city.vercel.app",
+        "http://localhost:8080"  # 開發環境
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
