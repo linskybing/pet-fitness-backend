@@ -90,12 +90,49 @@ def get_stage_for_level(level: int, breakthrough_completed: bool) -> models.PetS
     return stage
 
 def update_pet(db: Session, pet: models.Pet, update_data: schemas.PetUpdate):
-    """Generic update function that allows updating any pet attribute"""
+    """
+    Generic update function that allows updating any pet attribute.
+    For strength/stamina/mood updates, uses the same logic as update_pet_stats.
+    """
     update_dict = update_data.dict(exclude_unset=True)
     
+    # Separate stat updates (strength, stamina, mood) from other updates
+    stat_updates = {}
+    other_updates = {}
+    
     for key, value in update_dict.items():
+        if key in ["strength", "stamina", "mood"]:
+            stat_updates[key] = value
+        else:
+            other_updates[key] = value
+    
+    # Apply non-stat updates directly
+    for key, value in other_updates.items():
         setattr(pet, key, value)
     
+    # If there are stat updates, use update_pet_stats logic
+    if stat_updates:
+        # Get current values
+        current_strength = pet.strength
+        current_stamina = pet.stamina
+        current_mood = pet.mood
+        
+        # Calculate deltas (difference from current to new value)
+        strength_delta = stat_updates.get("strength", current_strength) - current_strength
+        stamina_delta = stat_updates.get("stamina", current_stamina) - current_stamina
+        mood_delta = stat_updates.get("mood", current_mood) - current_mood
+        
+        # Use update_pet_stats to apply changes with level-up logic
+        result = update_pet_stats(
+            db=db,
+            pet=pet,
+            strength=strength_delta,
+            stamina=stamina_delta,
+            mood=mood_delta
+        )
+        return result["pet"]
+    
+    # If only non-stat updates, just commit
     db.commit()
     db.refresh(pet)
     return pet
