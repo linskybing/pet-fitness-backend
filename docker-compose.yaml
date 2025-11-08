@@ -1,0 +1,29 @@
+services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      # These values should match your .env file
+      - POSTGRES_USER=sky
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=pet_fitness_db
+    ports:
+      - "5433:5432" # Map host port to container port
+
+  # FastAPI API Service
+  api:
+    build: . # Build from the Dockerfile in the current directory
+    volumes:
+      - .:/app # Mount the current directory to /app for hot-reloading
+    ports:
+      - "8000:8000" # Map host port to container port
+    env_file:
+      - ./.env # Load environment variables from .env file
+    depends_on:
+      - db # Wait for the db service to start
+    # Removed the 'command' field here so the CMD in Dockerfile (start.sh) is executed.
+
+volumes:
+  postgres_data: # Define the persistent volume for the database
