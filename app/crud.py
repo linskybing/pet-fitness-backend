@@ -244,13 +244,13 @@ def log_exercise(db: Session, user_id: str, log: schemas.ExerciseLogCreate):
         pet.daily_steps += log.steps
         
         # Auto-complete daily quests if conditions met
-        # Quest 2: 運動十分鐘 (600 seconds)
-        if pet.daily_exercise_seconds >= 600 and not pet.daily_quest_2_completed:
-            pet.daily_quest_2_completed = True
+        # Quest 2: 運動十分鐘 (600 seconds) - Mark as claimable (completed=False means can claim)
+        if pet.daily_exercise_seconds >= 600 and pet.daily_quest_2_completed:
+            pet.daily_quest_2_completed = False  # Ready to claim
         
-        # Quest 3: 走路5000步
-        if pet.daily_steps >= 5000 and not pet.daily_quest_3_completed:
-            pet.daily_quest_3_completed = True
+        # Quest 3: 走路5000步 - Mark as claimable
+        if pet.daily_steps >= 5000 and pet.daily_quest_3_completed:
+            pet.daily_quest_3_completed = False  # Ready to claim
         
         # Calculate pet stat changes based on exercise duration
         # 10 seconds = 1 strength point
@@ -323,22 +323,22 @@ def claim_daily_quest_reward(db: Session, user_id: str, quest_id: int):
         if not pet:
             return None
         
-        # Check quest completion status and if already claimed
+        # Check if quest is ready to claim (completed=False means claimable)
         if quest_id == 1:
-            if not pet.daily_quest_1_completed:
+            if pet.daily_quest_1_completed:
                 return {"success": False, "message": "Quest not completed yet"}
-            # Mark as not completed after claiming (prevents re-claiming)
-            pet.daily_quest_1_completed = False
+            # Mark as claimed (completed=True means already claimed)
+            pet.daily_quest_1_completed = True
             quest_def = DAILY_QUEST_DEFINITIONS[0]
         elif quest_id == 2:
-            if not pet.daily_quest_2_completed:
+            if pet.daily_quest_2_completed:
                 return {"success": False, "message": "Quest not completed yet"}
-            pet.daily_quest_2_completed = False
+            pet.daily_quest_2_completed = True
             quest_def = DAILY_QUEST_DEFINITIONS[1]
         elif quest_id == 3:
-            if not pet.daily_quest_3_completed:
+            if pet.daily_quest_3_completed:
                 return {"success": False, "message": "Quest not completed yet"}
-            pet.daily_quest_3_completed = False
+            pet.daily_quest_3_completed = True
             quest_def = DAILY_QUEST_DEFINITIONS[2]
         else:
             return {"success": False, "message": "Invalid quest ID"}
@@ -521,9 +521,9 @@ def perform_daily_check(db: Session, user_id: str):
         pet.last_reset_date = now
         
         # Reset daily quests and complete Quest 1 (daily login)
-        pet.daily_quest_1_completed = True  # Quest 1: 每日登入 (auto-complete on login)
-        pet.daily_quest_2_completed = False  # Quest 2: 運動十分鐘
-        pet.daily_quest_3_completed = False  # Quest 3: 走路5000步
+        pet.daily_quest_1_completed = False  # Quest 1: 每日登入 (ready to claim on login)
+        pet.daily_quest_2_completed = True   # Quest 2: 運動十分鐘 (not yet achieved)
+        pet.daily_quest_3_completed = True   # Quest 3: 走路5000步 (not yet achieved)
         
         if not met_requirement:
             # Didn't meet requirement - decrease mood
