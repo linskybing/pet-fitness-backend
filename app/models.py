@@ -42,6 +42,7 @@ class Pet(Base):
     
     # Daily tracking
     daily_exercise_seconds = Column(Integer, default=0) # Today's accumulated exercise time in seconds
+    daily_steps = Column(Integer, default=0) # Today's accumulated walking steps
     last_reset_date = Column(DateTime(timezone=True), nullable=True) # Last date when daily stats were reset
     
     # Breakthrough tracking
@@ -64,9 +65,10 @@ class ExerciseLog(Base):
     __tablename__ = "exercise_logs"
     
     id = Column(Integer, primary_key=True, index=True)
-    exercise_type = Column(String, index=True) # "Stationary", "Running"
+    exercise_type = Column(String, index=True) # "Stationary", "Running", "Walking"
     duration_seconds = Column(Integer)
     volume = Column(Float) # Exercise volume (scalar)
+    steps = Column(Integer, default=0) # Steps count for walking exercises
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user_id = Column(String, ForeignKey("users.id"))  # String to match User.id

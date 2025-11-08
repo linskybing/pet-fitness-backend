@@ -16,6 +16,7 @@ class PetBase(BaseModel):
     stage: PetStage = PetStage.EGG
     breakthrough_completed: bool = False
     daily_exercise_seconds: int = 0
+    daily_steps: int = 0
 
 class PetCreate(PetBase):
     pass
@@ -29,6 +30,7 @@ class PetUpdate(BaseModel):
     stage: Optional[PetStage] = None
     breakthrough_completed: Optional[bool] = None
     daily_exercise_seconds: Optional[int] = None
+    daily_steps: Optional[int] = None
 
 class UserBase(BaseModel):
     pass
@@ -41,6 +43,7 @@ class ExerciseLogBase(BaseModel):
     exercise_type: str
     duration_seconds: int
     volume: float
+    steps: int = 0
 
 class ExerciseLogCreate(ExerciseLogBase):
     pass

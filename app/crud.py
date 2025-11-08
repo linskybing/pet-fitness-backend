@@ -225,6 +225,7 @@ def log_exercise(db: Session, user_id: str, log: schemas.ExerciseLogCreate):
     - 10 seconds of exercise = 1 strength point
     - Stamina cost: 10 per exercise session
     - Mood increase: 5 per exercise session
+    - Accumulate daily exercise time and steps
     """
     try:
         pet = get_pet_by_user_id(db, user_id)
@@ -237,6 +238,10 @@ def log_exercise(db: Session, user_id: str, log: schemas.ExerciseLogCreate):
             pet_id=pet.id
         )
         db.add(db_log)
+        
+        # Accumulate daily exercise time and steps
+        pet.daily_exercise_seconds += log.duration_seconds
+        pet.daily_steps += log.steps
         
         # Calculate pet stat changes based on exercise duration
         # 10 seconds = 1 strength point
@@ -405,6 +410,11 @@ def perform_daily_check(db: Session, user_id: str):
         
         # Reset stamina to 900 for the new day
         pet.stamina = MAX_STAMINA
+        
+        # Reset daily exercise tracking
+        pet.daily_exercise_seconds = 0
+        pet.daily_steps = 0
+        pet.last_reset_date = now
         
         if not met_requirement:
             # Didn't meet requirement - decrease mood
