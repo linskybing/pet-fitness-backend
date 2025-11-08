@@ -36,12 +36,14 @@ class Pet(Base):
     name = Column(String, default="我的手雞")
     
     # Stats
-    strength = Column(Integer, default=5) # Strength
-    stamina = Column(Integer, default=20) # Stamina (consumed and restored)
-    satiety = Column(Integer, default=50) # Satiety (0-100)
-    mood = Column(Integer, default=50) # Mood (0-100)
-    growth_points = Column(Integer, default=0) # Growth Points (EXP)
+    strength = Column(Integer, default=0) # Strength (0-120, resets after level up)
+    stamina = Column(Integer, default=100) # Stamina (consumed and restored, 0-100)
+    mood = Column(Integer, default=0) # Mood (starts at 0, increases with exercise)
     level = Column(Integer, default=1) # Level
+    
+    # Breakthrough tracking
+    breakthrough_completed = Column(Boolean, default=False) # Tracks if breakthrough is needed
+    last_daily_check = Column(DateTime(timezone=True), nullable=True) # Last time daily check was performed
     
     # Growth Stage
     stage = Column(SAEnum(PetStage), default=PetStage.EGG)
@@ -78,10 +80,8 @@ class Quest(Base):
     title = Column(String, unique=True)
     description = Column(String)
     # Rewards
-    reward_growth = Column(Integer, default=0)
     reward_strength = Column(Integer, default=0)
     reward_stamina = Column(Integer, default=0)
-    reward_satiety = Column(Integer, default=0)
     reward_mood = Column(Integer, default=0)
 
 # User's quest status

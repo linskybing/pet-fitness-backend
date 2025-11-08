@@ -9,13 +9,12 @@ from .models import PetStage
 
 class PetBase(BaseModel):
     name: Optional[str] = "我的手雞"
-    strength: int = 5
-    stamina: int = 20
-    satiety: int = 50
-    mood: int = 50
-    growth_points: int = 0
+    strength: int = 0
+    stamina: int = 100
+    mood: int = 0
     level: int = 1
     stage: PetStage = PetStage.EGG
+    breakthrough_completed: bool = False
 
 class PetCreate(PetBase):
     pass
@@ -24,11 +23,10 @@ class PetUpdate(BaseModel):
     name: Optional[str] = None
     strength: Optional[int] = None
     stamina: Optional[int] = None
-    satiety: Optional[int] = None
     mood: Optional[int] = None
-    growth_points: Optional[int] = None
     level: Optional[int] = None
     stage: Optional[PetStage] = None
+    breakthrough_completed: Optional[bool] = None
 
 class UserBase(BaseModel):
     username: str
@@ -48,9 +46,8 @@ class ExerciseLogCreate(ExerciseLogBase):
 class QuestBase(BaseModel):
     title: str
     description: Optional[str] = None
-    reward_growth: int = 0
     reward_strength: int = 0
-    reward_satiety: int = 0
+    reward_stamina: int = 0
     reward_mood: int = 0
 
 class AttractionBase(BaseModel):
@@ -68,6 +65,7 @@ class Pet(PetBase):
     id: int
     owner_id: int
     updated_at: Optional[datetime]
+    last_daily_check: Optional[datetime] = None
 
     class Config:
         from_attributes = True # Pydantic v2 (formerly orm_mode=True)

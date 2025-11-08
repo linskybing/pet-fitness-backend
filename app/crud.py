@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
 import random
+from datetime import datetime, date, time, timedelta
 
 # Password hashing is omitted for simplicity.
 # In a real app, use passlib:
@@ -57,21 +58,38 @@ def create_pet_for_user(db: Session, user: models.User):
     db.refresh(db_pet)
     return db_pet
 
-# Map of levels to stages
+# Map of levels to stages (only after breakthrough)
+# Stage evolution happens AFTER breakthrough at level milestones
 LEVEL_STAGE_MAP = {
-    1: models.PetStage.EGG,
-    5: models.PetStage.CHICK,
-    10: models.PetStage.CHICKEN,
-    15: models.PetStage.BIG_CHICKEN,
-    20: models.PetStage.BUFF_CHICKEN
+    1: models.PetStage.EGG,        # Level 1-4 (before lv5 breakthrough)
+    5: models.PetStage.CHICK,      # After lv5 breakthrough
+    10: models.PetStage.CHICKEN,   # After lv10 breakthrough
+    15: models.PetStage.BIG_CHICKEN, # After lv15 breakthrough
+    20: models.PetStage.BUFF_CHICKEN # After lv20 breakthrough
 }
-MAX_LEVEL = 20
+MAX_LEVEL = 25
+STRENGTH_PER_LEVEL = 120  # 120 points = 1200 seconds = 20 minutes
+MIN_DAILY_STRENGTH = 60   # Minimum 60 points (10 minutes) per day to maintain mood
 
-def get_stage_for_level(level: int) -> models.PetStage:
+def get_stage_for_level(level: int, breakthrough_completed: bool) -> models.PetStage:
+    """
+    Determine the pet's stage based on level and breakthrough status.
+    Stage only changes AFTER completing breakthrough at level milestones (5, 10, 15, 20).
+    """
+    # If at a breakthrough level (multiple of 5) but haven't completed breakthrough, stay at previous stage
+    if level % 5 == 0 and level > 1 and not breakthrough_completed:
+        # Stay at previous milestone's stage
+        prev_milestone = level - 5
+        for lvl_threshold in sorted(LEVEL_STAGE_MAP.keys(), reverse=True):
+            if prev_milestone >= lvl_threshold:
+                return LEVEL_STAGE_MAP[lvl_threshold]
+    
+    # Otherwise, find the appropriate stage for current level
     stage = models.PetStage.EGG
-    for lvl_threshold, stg in LEVEL_STAGE_MAP.items():
+    for lvl_threshold in sorted(LEVEL_STAGE_MAP.keys(), reverse=True):
         if level >= lvl_threshold:
-            stage = stg
+            stage = LEVEL_STAGE_MAP[lvl_threshold]
+            break
     return stage
 
 def update_pet(db: Session, pet: models.Pet, update_data: schemas.PetUpdate):
@@ -86,35 +104,75 @@ def update_pet(db: Session, pet: models.Pet, update_data: schemas.PetUpdate):
     return pet
 
 def update_pet_stats(db: Session, pet: models.Pet, 
-                     growth: int = 0, strength: int = 0, 
-                     stamina: int = 0, satiety: int = 0, mood: int = 0):
+                     strength: int = 0, stamina: int = 0, mood: int = 0):
+    """
+    Update pet stats with new strength-based leveling system.
+    - Strength gains: 10 seconds of exercise = 1 point
+    - Level up: Every 120 strength points = 1 level (20 minutes)
+    - Breakthrough: At levels 5, 10, 15, 20, need breakthrough to continue gaining strength
+    - Mood: Increases with exercise
+    - Stamina: 0-100 range
+    """
     
-    pet.growth_points += growth
+    # Check if at a breakthrough level and breakthrough not completed
+    needs_breakthrough = (pet.level % 5 == 0) and (pet.level >= 5) and not pet.breakthrough_completed
+    
+    if needs_breakthrough and strength > 0:
+        # Cannot gain strength without breakthrough - return warning
+        # Strength gains are blocked
+        strength = 0
+        # Still update stamina and mood
+        pet.stamina = max(0, min(100, pet.stamina + stamina))
+        pet.mood = max(0, min(100, pet.mood + mood))
+        db.commit()
+        db.refresh(pet)
+        return {"pet": pet, "breakthrough_required": True}
+    
+    # Apply strength gains
     pet.strength += strength
-    pet.stamina = max(0, min(100, pet.stamina + stamina)) # Stamina 0-100
-    pet.satiety = max(0, min(100, pet.satiety + satiety)) # Satiety 0-100
-    pet.mood = max(0, min(100, pet.mood + mood)) # Mood 0-100
-
-    # Check for level up (Example: 1 level per 100 growth points)
-    new_level = (pet.growth_points // 100) + 1
-    if new_level > pet.level and pet.level < MAX_LEVEL:
-        pet.level = new_level
-        # Give bonus on level up
-        pet.stamina = 100
-        pet.mood += 10
     
-    # Update growth stage
-    pet.stage = get_stage_for_level(pet.level)
-
+    # Check for level up (120 strength points = 1 level)
+    while pet.strength >= STRENGTH_PER_LEVEL and pet.level < MAX_LEVEL:
+        pet.strength -= STRENGTH_PER_LEVEL
+        pet.level += 1
+        
+        # Reset stamina to full on level up
+        pet.stamina = 100
+        pet.mood += 10  # Bonus mood on level up
+        
+        # Check if new level requires breakthrough
+        if pet.level % 5 == 0 and pet.level >= 5:
+            pet.breakthrough_completed = False
+            # Stop further leveling until breakthrough
+            break
+    
+    # Cap strength at max for current level if at breakthrough
+    if pet.level % 5 == 0 and pet.level >= 5 and not pet.breakthrough_completed:
+        pet.strength = 0
+    
+    # Update other stats
+    pet.stamina = max(0, min(100, pet.stamina + stamina))
+    pet.mood = max(0, min(100, pet.mood + mood))
+    
+    # Update growth stage based on level and breakthrough status
+    pet.stage = get_stage_for_level(pet.level, pet.breakthrough_completed)
+    
     db.commit()
     db.refresh(pet)
-    return pet
+    return {"pet": pet, "breakthrough_required": False}
 
 # ==================
 # Exercise
 # ==================
 
 def log_exercise(db: Session, user_id: int, log: schemas.ExerciseLogCreate):
+    """
+    Log exercise and update pet stats.
+    New logic:
+    - 10 seconds of exercise = 1 strength point
+    - Stamina cost: 10 per exercise session
+    - Mood increase: 5 per exercise session
+    """
     pet = get_pet_by_user_id(db, user_id)
     if not pet:
         return None
@@ -126,26 +184,21 @@ def log_exercise(db: Session, user_id: int, log: schemas.ExerciseLogCreate):
     )
     db.add(db_log)
     
-    # Calculate pet stat changes based on exercise
-    # Example logic:
-    # 1 point of volume = +2 growth, +0.1 strength
-    # Cost: 10 stamina, 5 satiety
-    growth_gain = int(log.volume * 2)
-    strength_gain = int(log.volume * 0.1)
+    # Calculate pet stat changes based on exercise duration
+    # 10 seconds = 1 strength point
+    strength_gain = log.duration_seconds // 10
     stamina_cost = -10
-    satiety_cost = -5
+    mood_gain = 5
 
-    updated_pet = update_pet_stats(
+    result = update_pet_stats(
         db=db,
         pet=pet,
-        growth=growth_gain,
         strength=strength_gain,
         stamina=stamina_cost,
-        satiety=satiety_cost,
-        mood=5 # Exercise improves mood
+        mood=mood_gain
     )
     
-    return updated_pet
+    return result
 
 # ==================
 # Quest
@@ -153,9 +206,9 @@ def log_exercise(db: Session, user_id: int, log: schemas.ExerciseLogCreate):
 
 # Simple daily quest system
 QUEST_TEMPLATES = [
-    {"title": "Daily Check-in", "description": "Log in to the app", "reward_growth": 10, "reward_mood": 5},
-    {"title": "Complete 1 Exercise", "description": "Complete one exercise of any type", "reward_growth": 20, "reward_stamina": 10},
-    {"title": "Full of Energy", "description": "Accumulate 100 exercise volume", "reward_growth": 50, "reward_strength": 1},
+    {"title": "Daily Check-in", "description": "Log in to the app", "reward_mood": 5, "reward_stamina": 10},
+    {"title": "Complete 1 Exercise", "description": "Complete one exercise of any type", "reward_strength": 20, "reward_stamina": 10},
+    {"title": "Full of Energy", "description": "Accumulate 100 exercise volume", "reward_strength": 50, "reward_mood": 10},
 ]
 
 def get_or_create_daily_quests(db: Session, user_id: int):
@@ -203,21 +256,97 @@ def complete_quest(db: Session, user_id: int, user_quest_id: int):
     
     # Apply rewards
     pet = get_pet_by_user_id(db, user_id)
-    updated_pet = update_pet_stats(
+    result = update_pet_stats(
         db=db,
         pet=pet,
-        growth=uq.quest.reward_growth,
         strength=uq.quest.reward_strength,
         stamina=uq.quest.reward_stamina,
-        satiety=uq.quest.reward_satiety,
         mood=uq.quest.reward_mood
     )
     
     db.commit()
-    return updated_pet
+    return result
 
 # ==================
 # Travel & Leaderboard
+# ==================
+
+def perform_daily_check(db: Session, user_id: int):
+    """
+    Perform daily check at 00:00 to verify if user exercised enough yesterday.
+    If user didn't exercise at least 10 minutes (60 strength points), decrease mood.
+    If mood reaches 0 and strength > 0, decrease strength.
+    If stamina is 0, don't decrease mood (already exercised enough).
+    """
+    pet = get_pet_by_user_id(db, user_id)
+    if not pet:
+        return None
+    
+    now = datetime.now()
+    today_start = datetime.combine(date.today(), time.min)
+    
+    # Check if daily check already performed today
+    if pet.last_daily_check and pet.last_daily_check >= today_start:
+        return {"pet": pet, "already_checked": True}
+    
+    # Get yesterday's exercise logs
+    yesterday_start = today_start - timedelta(days=1)
+    yesterday_exercises = db.query(models.ExerciseLog).filter(
+        models.ExerciseLog.user_id == user_id,
+        models.ExerciseLog.created_at >= yesterday_start,
+        models.ExerciseLog.created_at < today_start
+    ).all()
+    
+    # Calculate total strength points gained yesterday (10 seconds = 1 point)
+    total_strength_yesterday = sum(log.duration_seconds // 10 for log in yesterday_exercises)
+    
+    # Check if met minimum requirement (60 points = 10 minutes)
+    if total_strength_yesterday < MIN_DAILY_STRENGTH:
+        # Didn't meet requirement - decrease mood
+        # But only if stamina > 0 (if stamina is 0, they exercised enough)
+        if pet.stamina > 0:
+            pet.mood = max(0, pet.mood - 10)
+            
+            # If mood reaches 0 and strength > 0, decrease strength
+            if pet.mood == 0 and pet.strength > 0:
+                pet.strength = max(0, pet.strength - 10)
+    
+    # Update last daily check timestamp
+    pet.last_daily_check = now
+    
+    db.commit()
+    db.refresh(pet)
+    return {"pet": pet, "already_checked": False, "met_requirement": total_strength_yesterday >= MIN_DAILY_STRENGTH}
+
+def complete_breakthrough(db: Session, user_id: int):
+    """
+    Complete breakthrough by traveling to an attraction.
+    This allows the pet to continue leveling past level 5, 10, 15, 20.
+    """
+    pet = get_pet_by_user_id(db, user_id)
+    if not pet:
+        return None
+    
+    # Check if at a breakthrough level
+    if pet.level % 5 != 0 or pet.level < 5:
+        return {"success": False, "message": "Not at a breakthrough level"}
+    
+    if pet.breakthrough_completed:
+        return {"success": False, "message": "Breakthrough already completed for this level"}
+    
+    # Mark breakthrough as completed
+    pet.breakthrough_completed = True
+    
+    # Update stage after breakthrough
+    pet.stage = get_stage_for_level(pet.level, pet.breakthrough_completed)
+    
+    db.commit()
+    db.refresh(pet)
+    
+    return {"success": True, "pet": pet, "message": "Breakthrough completed!"}
+
+# ==================
+# Travel & Leaderboard (continued)
 # ==================
 
 TAIPEI_ATTRACTIONS = [
@@ -246,6 +375,6 @@ def get_random_attraction(db: Session):
 def get_leaderboard_by_level(db: Session, limit: int = 10):
     return db.query(models.Pet, models.User.username)\
              .join(models.User, models.Pet.owner_id == models.User.id)\
-             .order_by(models.Pet.level.desc(), models.Pet.growth_points.desc())\
+             .order_by(models.Pet.level.desc(), models.Pet.strength.desc())\
              .limit(limit)\
              .all()

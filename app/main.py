@@ -81,13 +81,12 @@ def update_user_pet(user_id: int, pet_update: schemas.PetUpdate, db: Session = D
     
     You can update any combination of:
     - name: Pet name
-    - strength: Strength value
+    - strength: Strength value (0-120)
     - stamina: Stamina value (0-100)
-    - satiety: Satiety value (0-100)
     - mood: Mood value (0-100)
-    - growth_points: Growth points (EXP)
     - level: Pet level
     - stage: Growth stage (0-4)
+    - breakthrough_completed: Whether breakthrough is completed
     
     Only the fields you provide will be updated.
     """
@@ -100,19 +99,21 @@ def update_user_pet(user_id: int, pet_update: schemas.PetUpdate, db: Session = D
 # ==================
 # Exercise
 # ==================
-@app.post("/users/{user_id}/exercise", response_model=schemas.Pet, tags=["Exercise"])
+@app.post("/users/{user_id}/exercise", tags=["Exercise"])
 def log_exercise(user_id: int, log: schemas.ExerciseLogCreate, db: Session = Depends(get_db)):
     """
     Log an exercise session.
     
     Pass in the exercise type, duration, and volume (scalar).
-    The server will automatically calculate growth points, strength,
-    stamina cost, etc., and return the updated pet status.
+    The server will automatically calculate strength gains (10 seconds = 1 point),
+    stamina cost, mood increase, and check for level ups.
+    
+    Returns the updated pet status and a flag indicating if breakthrough is required.
     """
-    updated_pet = crud.log_exercise(db, user_id, log)
-    if updated_pet is None:
+    result = crud.log_exercise(db, user_id, log)
+    if result is None:
         raise HTTPException(status_code=404, detail="User or pet not found")
-    return updated_pet
+    return result
 
 # ==================
 # Daily Quests
@@ -127,21 +128,42 @@ def get_daily_quests(user_id: int, db: Session = Depends(get_db)):
     quests = crud.get_or_create_daily_quests(db, user_id)
     return quests
 
-@app.post("/users/{user_id}/quests/{user_quest_id}/complete", response_model=schemas.Pet, tags=["Quests"])
+@app.post("/users/{user_id}/quests/{user_quest_id}/complete", tags=["Quests"])
 def complete_daily_quest(user_id: int, user_quest_id: int, db: Session = Depends(get_db)):
     """
     Report a specific quest as complete.
     
     The server marks the quest as complete and applies the rewards
     (updating the pet's status).
+    
+    Returns the updated pet status and a flag indicating if breakthrough is required.
     """
     # Note: In this version, calling the API marks it as complete.
     # A future version could have the server auto-complete quests
     # based on events like `log_exercise`.
-    updated_pet = crud.complete_quest(db, user_id, user_quest_id)
-    if updated_pet is None:
+    result = crud.complete_quest(db, user_id, user_quest_id)
+    if result is None:
         raise HTTPException(status_code=404, detail="Quest not found or already completed")
-    return updated_pet
+    return result
+
+# ==================
+# Daily Check
+# ==================
+@app.post("/users/{user_id}/daily-check", tags=["Pet"])
+def perform_daily_check(user_id: int, db: Session = Depends(get_db)):
+    """
+    Perform daily check to verify if user exercised enough yesterday.
+    
+    Should be called at 00:00 or when user logs in each day.
+    - Checks if user exercised at least 10 minutes (60 strength points) yesterday
+    - If not and stamina > 0, decreases mood
+    - If mood reaches 0 and strength > 0, decreases strength
+    - If stamina is 0, doesn't decrease mood (already exercised enough)
+    """
+    result = crud.perform_daily_check(db, user_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="User or pet not found")
+    return result
 
 # ==================
 # Travel (Breakthrough)
@@ -153,30 +175,49 @@ def get_all_attractions(db: Session = Depends(get_db)):
     """
     return db.query(models.Attraction).all()
 
+@app.post("/users/{user_id}/travel/breakthrough", tags=["Travel"])
+def complete_breakthrough(user_id: int, db: Session = Depends(get_db)):
+    """
+    Complete a breakthrough to continue leveling past levels 5, 10, 15, 20.
+    
+    When a pet reaches a multiple of level 5, they need to complete a breakthrough
+    (by traveling to an attraction) to continue gaining strength points and leveling up.
+    
+    Returns success status and updated pet information.
+    """
+    result = crud.complete_breakthrough(db, user_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Pet not found")
+    return result
+
 @app.post("/users/{user_id}/travel/start", response_model=schemas.Attraction, tags=["Travel"])
 def start_travel_quest(user_id: int, db: Session = Depends(get_db)):
     """
-    Start a "breakthrough" quest.
+    Get a random attraction for breakthrough quest.
     
-    1. Checks if the pet has reached the max level (currently 20).
-    2. If so, assigns a random Taipei attraction as the quest target.
+    Returns a random Taipei attraction that can be used for breakthrough.
     """
     pet = crud.get_pet_by_user_id(db, user_id)
     if not pet:
         raise HTTPException(status_code=404, detail="Pet not found")
 
-    if pet.level < crud.MAX_LEVEL:
+    # Check if at a breakthrough level
+    if pet.level % 5 != 0 or pet.level < 5:
         raise HTTPException(
             status_code=400, 
-            detail=f"Pet has not reached max level {crud.MAX_LEVEL}. Cannot start breakthrough quest."
+            detail="Pet is not at a breakthrough level (5, 10, 15, 20)."
+        )
+    
+    if pet.breakthrough_completed:
+        raise HTTPException(
+            status_code=400,
+            detail="Breakthrough already completed for this level."
         )
 
     attraction = crud.get_random_attraction(db)
     if not attraction:
         raise HTTPException(status_code=500, detail="No travel attractions available")
         
-    # A "TravelQuest" record could be created here.
-    # For now, just return the attraction.
     return attraction
 
 # ==================
