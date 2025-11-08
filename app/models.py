@@ -25,6 +25,8 @@ class User(Base):
     exercise_logs = relationship("ExerciseLog", back_populates="user", cascade="all, delete-orphan")
     # Create relationship with UserQuest
     quests = relationship("UserQuest", back_populates="user", cascade="all, delete-orphan")
+    # Create relationship with TravelCheckin
+    travel_checkins = relationship("TravelCheckin", back_populates="user", cascade="all, delete-orphan")
 
 class Pet(Base):
     __tablename__ = "pets"
@@ -37,6 +39,10 @@ class Pet(Base):
     stamina = Column(Integer, default=100) # Stamina (consumed and restored, 0-100)
     mood = Column(Integer, default=0) # Mood (starts at 0, increases with exercise)
     level = Column(Integer, default=1) # Level
+    
+    # Daily tracking
+    daily_exercise_seconds = Column(Integer, default=0) # Today's accumulated exercise time in seconds
+    last_reset_date = Column(DateTime(timezone=True), nullable=True) # Last date when daily stats were reset
     
     # Breakthrough tracking
     breakthrough_completed = Column(Boolean, default=False) # Tracks if breakthrough is needed
@@ -93,6 +99,19 @@ class UserQuest(Base):
 
     user = relationship("User", back_populates="quests")
     quest = relationship("Quest")
+
+# Travel checkins (location-based quests)
+class TravelCheckin(Base):
+    __tablename__ = "travel_checkins"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"))
+    quest_id = Column(String, index=True)  # ID from frontend JSON (e.g., "taipei-101")
+    completed_at = Column(DateTime(timezone=True), server_default=func.now())
+    lat = Column(Float)  # Latitude where checkin occurred
+    lng = Column(Float)  # Longitude where checkin occurred
+    
+    user = relationship("User", back_populates="travel_checkins")
 
 # Attractions (for breakthrough quests)
 class Attraction(Base):

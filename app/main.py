@@ -80,10 +80,16 @@ def read_user(user_id: str, db: Session = Depends(get_db)):
 def get_user_pet(user_id: str, db: Session = Depends(get_db)):
     """
     Get the current status of the specified user's pet.
+    Automatically resets daily stats if it's a new day.
     """
     pet = crud.get_pet_by_user_id(db, user_id=user_id)
     if pet is None:
         raise HTTPException(status_code=404, detail="Pet not found for this user")
+    
+    # Reset daily stats if needed (new day)
+    crud.reset_daily_stats_if_needed(db, pet)
+    db.refresh(pet)
+    
     return pet
 
 @app.patch("/users/{user_id}/pet", response_model=schemas.Pet, tags=["Pet"])
@@ -148,14 +154,16 @@ def complete_daily_quest(user_id: str, user_quest_id: int, db: Session = Depends
     The server marks the quest as complete and applies the rewards
     (updating the pet's status).
     
-    Returns the updated pet status and a flag indicating if breakthrough is required.
+    Returns success status and updated pet information.
+    Will return error if quest is already completed (preventing duplicate rewards).
     """
-    # Note: In this version, calling the API marks it as complete.
-    # A future version could have the server auto-complete quests
-    # based on events like `log_exercise`.
     result = crud.complete_quest(db, user_id, user_quest_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Quest not found or already completed")
+    if not result:
+        raise HTTPException(status_code=404, detail="Quest not found")
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Cannot complete quest"))
+    
     return result
 
 # ==================
@@ -186,6 +194,37 @@ def get_all_attractions(db: Session = Depends(get_db)):
     Get all available travel attractions (Placeholders).
     """
     return db.query(models.Attraction).all()
+
+@app.get("/users/{user_id}/travel/checkins", response_model=List[schemas.TravelCheckin], tags=["Travel"])
+def get_user_travel_checkins(user_id: str, db: Session = Depends(get_db)):
+    """
+    Get all travel checkins (completed location-based quests) for a user.
+    
+    Returns a list of all locations where the user has checked in.
+    """
+    return crud.get_user_travel_checkins(db, user_id)
+
+@app.post("/users/{user_id}/travel/checkins", tags=["Travel"])
+def create_travel_checkin(
+    user_id: str, 
+    checkin: schemas.TravelCheckinCreate, 
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new travel checkin at a location-based quest.
+    
+    When a user visits a quest location and checks in, this endpoint:
+    - Records the checkin with quest_id, lat, lng, and timestamp
+    - Rewards the pet with strength and mood bonuses
+    - Prevents duplicate checkins at the same location
+    
+    Returns the updated pet and checkin record.
+    """
+    try:
+        result = crud.create_travel_checkin(db, user_id, checkin)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/users/{user_id}/travel/breakthrough", tags=["Travel"])
 def complete_breakthrough(user_id: str, db: Session = Depends(get_db)):

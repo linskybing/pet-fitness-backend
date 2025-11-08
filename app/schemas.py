@@ -15,6 +15,7 @@ class PetBase(BaseModel):
     level: int = 1
     stage: PetStage = PetStage.EGG
     breakthrough_completed: bool = False
+    daily_exercise_seconds: int = 0
 
 class PetCreate(PetBase):
     pass
@@ -27,6 +28,7 @@ class PetUpdate(BaseModel):
     level: Optional[int] = None
     stage: Optional[PetStage] = None
     breakthrough_completed: Optional[bool] = None
+    daily_exercise_seconds: Optional[int] = None
 
 class UserBase(BaseModel):
     pass
@@ -56,6 +58,14 @@ class AttractionBase(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
+class TravelCheckinBase(BaseModel):
+    quest_id: str
+    lat: float
+    lng: float
+
+class TravelCheckinCreate(TravelCheckinBase):
+    pass
+
 
 # ==================
 # Response models (reading from DB)
@@ -66,6 +76,7 @@ class Pet(PetBase):
     owner_id: str  # Changed to string to match User.id
     updated_at: Optional[datetime]
     last_daily_check: Optional[datetime] = None
+    last_reset_date: Optional[datetime] = None
 
     class Config:
         from_attributes = True # Pydantic v2 (formerly orm_mode=True)
@@ -107,6 +118,14 @@ class User(UserBase):
 
 class Attraction(AttractionBase):
     id: int
+    
+    class Config:
+        from_attributes = True
+
+class TravelCheckin(TravelCheckinBase):
+    id: int
+    user_id: str
+    completed_at: datetime
     
     class Config:
         from_attributes = True

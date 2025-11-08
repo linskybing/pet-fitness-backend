@@ -403,3 +403,28 @@ def get_leaderboard_by_level(db: Session, limit: int = 10):
              .order_by(models.Pet.level.desc(), models.Pet.strength.desc())\
              .limit(limit)\
              .all()
+
+# ==================
+# Travel Checkins (Location-based quests)
+# ==================
+
+def get_user_travel_checkins(db: Session, user_id: str):
+    "Get all travel checkins for a user"
+    return db.query(models.TravelCheckin).filter(models.TravelCheckin.user_id == user_id).order_by(models.TravelCheckin.completed_at.desc()).all()
+
+def create_travel_checkin(db: Session, user_id: str, checkin: schemas.TravelCheckinCreate):
+    "Create a new travel checkin and reward the pet."
+    pet = get_pet_by_user_id(db, user_id)
+    if not pet:
+        raise ValueError("Pet not found")
+    existing = db.query(models.TravelCheckin).filter(models.TravelCheckin.user_id == user_id).filter(models.TravelCheckin.quest_id == checkin.quest_id).first()
+    if existing:
+        raise ValueError("Already checked in at this location")
+    db_checkin = models.TravelCheckin(user_id=user_id, quest_id=checkin.quest_id, lat=checkin.lat, lng=checkin.lng)
+    db.add(db_checkin)
+    pet.strength = min(pet.strength + 15, 120)
+    pet.mood = min(pet.mood + 10, 100)
+    db.commit()
+    db.refresh(db_checkin)
+    db.refresh(pet)
+    return {"pet": pet, "checkin": db_checkin}
