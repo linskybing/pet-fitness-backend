@@ -64,7 +64,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_user(db=db, user=user)
 
 @app.get("/users/{user_id}", response_model=schemas.User, tags=["User"])
-def read_user(user_id: int, db: Session = Depends(get_db)):
+def read_user(user_id: str, db: Session = Depends(get_db)):
     """
     Get user information by ID (includes pet status).
     """
@@ -77,7 +77,7 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
 # Pet (The Chicken)
 # ==================
 @app.get("/users/{user_id}/pet", response_model=schemas.Pet, tags=["Pet"])
-def get_user_pet(user_id: int, db: Session = Depends(get_db)):
+def get_user_pet(user_id: str, db: Session = Depends(get_db)):
     """
     Get the current status of the specified user's pet.
     """
@@ -87,7 +87,7 @@ def get_user_pet(user_id: int, db: Session = Depends(get_db)):
     return pet
 
 @app.patch("/users/{user_id}/pet", response_model=schemas.Pet, tags=["Pet"])
-def update_user_pet(user_id: int, pet_update: schemas.PetUpdate, db: Session = Depends(get_db)):
+def update_user_pet(user_id: str, pet_update: schemas.PetUpdate, db: Session = Depends(get_db)):
     """
     Update any attributes of the user's pet.
     
@@ -112,7 +112,7 @@ def update_user_pet(user_id: int, pet_update: schemas.PetUpdate, db: Session = D
 # Exercise
 # ==================
 @app.post("/users/{user_id}/exercise", tags=["Exercise"])
-def log_exercise(user_id: int, log: schemas.ExerciseLogCreate, db: Session = Depends(get_db)):
+def log_exercise(user_id: str, log: schemas.ExerciseLogCreate, db: Session = Depends(get_db)):
     """
     Log an exercise session.
     
@@ -131,7 +131,7 @@ def log_exercise(user_id: int, log: schemas.ExerciseLogCreate, db: Session = Dep
 # Daily Quests
 # ==================
 @app.get("/users/{user_id}/quests", response_model=List[schemas.UserQuest], tags=["Quests"])
-def get_daily_quests(user_id: int, db: Session = Depends(get_db)):
+def get_daily_quests(user_id: str, db: Session = Depends(get_db)):
     """
     Get the user's daily quest list.
     
@@ -141,7 +141,7 @@ def get_daily_quests(user_id: int, db: Session = Depends(get_db)):
     return quests
 
 @app.post("/users/{user_id}/quests/{user_quest_id}/complete", tags=["Quests"])
-def complete_daily_quest(user_id: int, user_quest_id: int, db: Session = Depends(get_db)):
+def complete_daily_quest(user_id: str, user_quest_id: int, db: Session = Depends(get_db)):
     """
     Report a specific quest as complete.
     
@@ -162,7 +162,7 @@ def complete_daily_quest(user_id: int, user_quest_id: int, db: Session = Depends
 # Daily Check
 # ==================
 @app.post("/users/{user_id}/daily-check", tags=["Pet"])
-def perform_daily_check(user_id: int, db: Session = Depends(get_db)):
+def perform_daily_check(user_id: str, db: Session = Depends(get_db)):
     """
     Perform daily check to verify if user exercised enough yesterday.
     
@@ -188,7 +188,7 @@ def get_all_attractions(db: Session = Depends(get_db)):
     return db.query(models.Attraction).all()
 
 @app.post("/users/{user_id}/travel/breakthrough", tags=["Travel"])
-def complete_breakthrough(user_id: int, db: Session = Depends(get_db)):
+def complete_breakthrough(user_id: str, db: Session = Depends(get_db)):
     """
     Complete a breakthrough to continue leveling past levels 5, 10, 15, 20.
     
@@ -203,7 +203,7 @@ def complete_breakthrough(user_id: int, db: Session = Depends(get_db)):
     return result
 
 @app.post("/users/{user_id}/travel/start", response_model=schemas.Attraction, tags=["Travel"])
-def start_travel_quest(user_id: int, db: Session = Depends(get_db)):
+def start_travel_quest(user_id: str, db: Session = Depends(get_db)):
     """
     Get a random attraction for breakthrough quest.
     

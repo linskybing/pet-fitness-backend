@@ -32,7 +32,8 @@ class UserBase(BaseModel):
     pass
 
 class UserCreate(BaseModel):
-    pet_name: str  # Only pet name is required
+    user_id: str  # TownPass ID or custom ID
+    pet_name: str  # Pet name is required
 
 class ExerciseLogBase(BaseModel):
     exercise_type: str
@@ -62,7 +63,7 @@ class AttractionBase(BaseModel):
 
 class Pet(PetBase):
     id: int
-    owner_id: int
+    owner_id: str  # Changed to string to match User.id
     updated_at: Optional[datetime]
     last_daily_check: Optional[datetime] = None
 
@@ -96,7 +97,7 @@ class UserQuest(BaseModel):
         from_attributes = True
 
 class User(UserBase):
-    id: int
+    id: str  # Changed to string for TownPass ID
     created_at: datetime
     pet: Optional[Pet] = None # Nested display for pet
     exercise_logs: List[ExerciseLog] = [] # Nested display for exercise logs

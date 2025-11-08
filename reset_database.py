@@ -35,9 +35,10 @@ def reset_database():
         db.commit()
         print("Quest templates seeded")
         
-        # Create a default user with pet name
+        # Create default user with id="1" and a pet
         default_user = schemas.UserCreate(
-            pet_name="測試小雞"
+            user_id="1",
+            pet_name="預設小雞"
         )
         created_user = crud.create_user(db, default_user)
         print(f"Default user created: id={created_user.id}, pet_name={created_user.pet.name}")

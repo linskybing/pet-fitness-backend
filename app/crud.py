@@ -14,12 +14,18 @@ from datetime import datetime, date, time, timedelta
 # User
 # ==================
 
-def get_user(db: Session, user_id: int):
+def get_user(db: Session, user_id: str):
     return db.query(models.User).filter(models.User.id == user_id).first()
 
 def create_user(db: Session, user: schemas.UserCreate):
-    # Create user
-    db_user = models.User()
+    # Check if user already exists
+    existing_user = get_user(db, user.user_id)
+    if existing_user:
+        # User already exists, just return it
+        return existing_user
+    
+    # Create user with provided user_id
+    db_user = models.User(id=user.user_id)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -34,7 +40,7 @@ def create_user(db: Session, user: schemas.UserCreate):
 # Pet
 # ==================
 
-def get_pet_by_user_id(db: Session, user_id: int):
+def get_pet_by_user_id(db: Session, user_id: str):
     return db.query(models.Pet).filter(models.Pet.owner_id == user_id).first()
 
 def create_pet_for_user(db: Session, user: models.User, pet_name: str):
@@ -156,7 +162,7 @@ def update_pet_stats(db: Session, pet: models.Pet,
 # Exercise
 # ==================
 
-def log_exercise(db: Session, user_id: int, log: schemas.ExerciseLogCreate):
+def log_exercise(db: Session, user_id: str, log: schemas.ExerciseLogCreate):
     """
     Log exercise and update pet stats.
     New logic:
@@ -202,7 +208,7 @@ QUEST_TEMPLATES = [
     {"title": "Full of Energy", "description": "Accumulate 100 exercise volume", "reward_strength": 50, "reward_mood": 10},
 ]
 
-def get_or_create_daily_quests(db: Session, user_id: int):
+def get_or_create_daily_quests(db: Session, user_id: str):
     # Check if quests for today have been generated (simplified logic)
     today_quests = db.query(models.UserQuest).filter(
         models.UserQuest.user_id == user_id,
@@ -234,7 +240,7 @@ def get_or_create_daily_quests(db: Session, user_id: int):
         
     return new_user_quests
 
-def complete_quest(db: Session, user_id: int, user_quest_id: int):
+def complete_quest(db: Session, user_id: str, user_quest_id: int):
     uq = db.query(models.UserQuest).filter(
         models.UserQuest.id == user_quest_id,
         models.UserQuest.user_id == user_id
@@ -262,7 +268,7 @@ def complete_quest(db: Session, user_id: int, user_quest_id: int):
 # Travel & Leaderboard
 # ==================
 
-def perform_daily_check(db: Session, user_id: int):
+def perform_daily_check(db: Session, user_id: str):
     """
     Perform daily check at 00:00 to verify if user exercised enough yesterday.
     If user didn't exercise at least 10 minutes (60 strength points), decrease mood.
@@ -337,7 +343,7 @@ def perform_daily_check(db: Session, user_id: int):
         print(f"Error in perform_daily_check: {e}")
         raise e
 
-def complete_breakthrough(db: Session, user_id: int):
+def complete_breakthrough(db: Session, user_id: str):
     """
     Complete breakthrough by traveling to an attraction.
     This allows the pet to continue leveling past level 5, 10, 15, 20.
