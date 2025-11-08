@@ -34,7 +34,7 @@ class UserBase(BaseModel):
     pass
 
 class UserCreate(BaseModel):
-    user_id: int
+    user_id: str  # TownPass ID
     pet_name: str  # Pet name is required
 
 class ExerciseLogBase(BaseModel):
@@ -73,7 +73,7 @@ class TravelCheckinCreate(TravelCheckinBase):
 
 class Pet(PetBase):
     id: int
-    owner_id: str  # Changed to string to match User.id
+    owner_id: str  # String to match User.id (TownPass ID)
     updated_at: Optional[datetime]
     last_daily_check: Optional[datetime] = None
     last_reset_date: Optional[datetime] = None
@@ -84,7 +84,7 @@ class Pet(PetBase):
 class ExerciseLog(ExerciseLogBase):
     id: int
     created_at: datetime
-    user_id: int
+    user_id: str  # String to match User.id
     pet_id: int
     
     class Config:
@@ -99,7 +99,7 @@ class Quest(QuestBase):
 class UserQuest(BaseModel):
     id: int
     quest_id: int
-    user_id: int
+    user_id: str  # String to match User.id
     date: datetime
     is_completed: bool
     quest: Quest # Nested display for quest details
@@ -108,7 +108,7 @@ class UserQuest(BaseModel):
         from_attributes = True
 
 class User(UserBase):
-    id: str  # Changed to string for TownPass ID
+    id: str  # TownPass ID (string)
     created_at: datetime
     pet: Optional[Pet] = None # Nested display for pet
     exercise_logs: List[ExerciseLog] = [] # Nested display for exercise logs
@@ -124,7 +124,7 @@ class Attraction(AttractionBase):
 
 class TravelCheckin(TravelCheckinBase):
     id: int
-    user_id: int
+    user_id: str  # String to match User.id
     completed_at: datetime
     
     class Config:
