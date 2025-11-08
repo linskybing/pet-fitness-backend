@@ -21,13 +21,9 @@ def get_user_by_username(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
 
 def create_user(db: Session, user: schemas.UserCreate):
-    # hashed_password = get_password_hash(user.password) # Should use hash
-    hashed_password = user.password + "_hashed" # Simple version for demo
-    
+    # Only username is required
     db_user = models.User(
-        username=user.username, 
-        email=user.email, 
-        hashed_password=hashed_password
+        username=user.username
     )
     db.add(db_user)
     db.commit()

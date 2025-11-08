@@ -44,7 +44,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user.
     
-    - After creating the user, an "Egg" stage pet is automatically assigned.
+    - Only username is required
+    - Returns user with id (use this id for all subsequent API calls)
+    - After creating the user, an "Egg" stage pet is automatically assigned
     """
     db_user = crud.get_user_by_username(db, username=user.username)
     if db_user:

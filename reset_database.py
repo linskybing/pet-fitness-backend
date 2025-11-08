@@ -35,17 +35,15 @@ def reset_database():
         db.commit()
         print("Quest templates seeded")
         
-        # Create a default user
+        # Create a default user (only username required)
         default_user = schemas.UserCreate(
-            username="testuser",
-            email="test@example.com",
-            password="password123"
+            username="testuser"
         )
         created_user = crud.create_user(db, default_user)
         print(f"Default user created: username={created_user.username}, id={created_user.id}")
         
         print("\nDatabase reset complete!")
-        print("Default user: username='testuser', password='password123'")
+        print("Default user: username='testuser'")
         
     except Exception as e:
         print(f"Error during seeding: {e}")

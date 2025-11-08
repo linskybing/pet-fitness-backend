@@ -30,10 +30,9 @@ class PetUpdate(BaseModel):
 
 class UserBase(BaseModel):
     username: str
-    email: str
 
 class UserCreate(UserBase):
-    password: str # Password required on input
+    pass  # Only username needed
 
 class ExerciseLogBase(BaseModel):
     exercise_type: str

@@ -15,12 +15,10 @@ def print_response(title, response):
     print(json.dumps(response.json(), indent=2, default=str))
 
 def test_new_system():
-    # 1. Create a user
+    # 1. Create a user (only username required)
     print("\n1. Creating a new user...")
     response = requests.post(f"{BASE_URL}/users/", json={
-        "username": "demo_user",
-        "email": "demo@example.com",
-        "password": "demo123"
+        "username": "demo_user"
     })
     print_response("User Created", response)
     user_id = response.json()["id"]
