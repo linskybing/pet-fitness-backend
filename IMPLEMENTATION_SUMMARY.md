@@ -3,11 +3,14 @@
 ## Changes Implemented
 
 ### 1. Removed Fields
+
 - **Removed `growth_points`**: No longer used for leveling
 - **Removed `satiety`**: Hunger/feeding system removed
 
 ### 2. Updated Pet Model (`models.py`)
+
 **New/Modified Fields:**
+
 - `strength`: Now 0-120 (resets after level up), default 0
 - `stamina`: 0-100 range, default 100 (increased from 20)
 - `mood`: Starts at 0 (changed from 50)
@@ -15,20 +18,25 @@
 - `last_daily_check`: DateTime for tracking daily mood checks
 
 ### 3. New Leveling System
+
 **Strength-Based Leveling:**
+
 - 10 seconds of exercise = 1 strength point
 - 120 strength points = 1 level (20 minutes of exercise)
 - Strength resets to 0 after leveling up
 - Max level increased to 25
 
 **Breakthrough System:**
+
 - At levels 5, 10, 15, 20: Pet needs breakthrough to continue
 - Without breakthrough: strength gains are blocked (set to 0)
 - Frontend should show pop-up warning when breakthrough required
 - Complete breakthrough by calling `/users/{user_id}/travel/breakthrough`
 
 ### 4. Stage Evolution System (Updated)
+
 Stages now only change AFTER breakthrough completion:
+
 - Level 1-4: EGG
 - Level 5+ (after lv5 breakthrough): CHICK
 - Level 10+ (after lv10 breakthrough): CHICKEN
@@ -36,7 +44,9 @@ Stages now only change AFTER breakthrough completion:
 - Level 20+ (after lv20 breakthrough): BUFF_CHICKEN
 
 ### 5. New Mood System
+
 **Mood Mechanics:**
+
 - Initial value: 0 (changed from 50)
 - Increases with exercise (+5 per session)
 - Daily check at 00:00 (or login):
@@ -49,12 +59,15 @@ Stages now only change AFTER breakthrough completion:
 ### 6. New API Endpoints
 
 #### Daily Check
+
 ```
 POST /users/{user_id}/daily-check
 ```
+
 Performs daily mood check based on yesterday's exercise.
 
 **Response:**
+
 ```json
 {
   "pet": {...},
@@ -64,12 +77,15 @@ Performs daily mood check based on yesterday's exercise.
 ```
 
 #### Complete Breakthrough
+
 ```
 POST /users/{user_id}/travel/breakthrough
 ```
+
 Completes breakthrough to continue leveling.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -79,34 +95,44 @@ Completes breakthrough to continue leveling.
 ```
 
 #### Start Travel (Get Random Attraction)
+
 ```
 POST /users/{user_id}/travel/start
 ```
+
 Gets a random attraction for breakthrough quest.
 
 ### 7. Modified API Responses
 
 #### Exercise Logging
+
 ```
 POST /users/{user_id}/exercise
 ```
+
 Now returns:
+
 ```json
 {
   "pet": {...},
   "breakthrough_required": false
 }
 ```
+
 The `breakthrough_required` flag indicates if user needs to complete breakthrough.
 
 #### Quest Completion
+
 ```
 POST /users/{user_id}/quests/{user_quest_id}/complete
 ```
+
 Now returns same format as exercise logging with `breakthrough_required` flag.
 
 ### 8. Updated Quest Rewards
+
 Quest templates updated to remove growth_points and satiety rewards:
+
 - Daily Check-in: +5 mood, +10 stamina
 - Complete 1 Exercise: +20 strength, +10 stamina
 - Full of Energy: +50 strength, +10 mood
@@ -116,12 +142,14 @@ Quest templates updated to remove growth_points and satiety rewards:
 **IMPORTANT:** The database schema has changed. You need to either:
 
 **Option A: Reset Database (Development)**
+
 ```bash
 python reset_database.py
 ```
 
 **Option B: Manual Migration (Production)**
 Run these SQL commands:
+
 ```sql
 -- Remove old columns
 ALTER TABLE pets DROP COLUMN growth_points;
@@ -151,6 +179,7 @@ UPDATE pets SET
 ## Usage Examples
 
 ### 1. Exercise Flow
+
 ```python
 # User exercises for 5 minutes (300 seconds)
 POST /users/1/exercise
@@ -173,6 +202,7 @@ POST /users/1/exercise
 ```
 
 ### 2. Level Up Example
+
 ```python
 # User has 110 strength, exercises for 2 minutes (120 seconds)
 # This gives 12 more points = 122 total
@@ -189,6 +219,7 @@ POST /users/1/exercise
 ```
 
 ### 3. Breakthrough Required
+
 ```python
 # User reaches level 5
 {
@@ -214,6 +245,7 @@ POST /users/1/exercise
 ```
 
 ### 4. Daily Check
+
 ```python
 # User didn't exercise enough yesterday
 POST /users/1/daily-check
