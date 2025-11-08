@@ -3,5 +3,10 @@
 
 echo "Starting FastAPI application..."
 
-# Launch FastAPI with the correct module path
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Use PORT environment variable from Cloud Run, default to 8080 for local development
+PORT=${PORT:-8080}
+
+echo "Container will listen on port: $PORT"
+
+# Launch FastAPI without --reload for production (Cloud Run)
+exec uvicorn app.main:app --host 0.0.0.0 --port $PORT

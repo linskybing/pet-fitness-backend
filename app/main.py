@@ -240,7 +240,7 @@ def complete_breakthrough(user_id: int, db: Session = Depends(get_db)):
     return result
 
 @app.post("/users/{user_id}/travel/start", response_model=schemas.Attraction, tags=["Travel"])
-def start_travel_quest(user_id: int, db: Session = Depends(get_db)):
+def start_travel_quest(user_id: str, db: Session = Depends(get_db)):
     """
     Get a random attraction for breakthrough quest.
     
