@@ -37,7 +37,7 @@ def reset_database():
         
         # Create default user with id="abcd" and a pet
         default_user = schemas.UserCreate(
-            user_id="abcd",
+            user_id="1",
             pet_name="預設小雞"
         )
         created_user = crud.create_user(db, default_user)
