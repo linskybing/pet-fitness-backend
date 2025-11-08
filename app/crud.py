@@ -286,7 +286,9 @@ def complete_quest(db: Session, user_id: str, user_quest_id: int):
     if not uq or uq.is_completed:
         return None # Quest doesn't exist or is already completed
     
+    # Mark quest as completed
     uq.is_completed = True
+    db.commit()  # Commit the quest completion first
     
     # Apply rewards
     pet = get_pet_by_user_id(db, user_id)
@@ -298,7 +300,7 @@ def complete_quest(db: Session, user_id: str, user_quest_id: int):
         mood=uq.quest.reward_mood
     )
     
-    db.commit()
+    # No need to commit again - update_pet_stats already commits
     return result
 
 # ==================
@@ -454,14 +456,33 @@ def create_travel_checkin(db: Session, user_id: str, checkin: schemas.TravelChec
     pet = get_pet_by_user_id(db, user_id)
     if not pet:
         raise ValueError("Pet not found")
-    existing = db.query(models.TravelCheckin).filter(models.TravelCheckin.user_id == user_id).filter(models.TravelCheckin.quest_id == checkin.quest_id).first()
+    
+    # Check if already checked in at this location
+    existing = db.query(models.TravelCheckin).filter(
+        models.TravelCheckin.user_id == user_id,
+        models.TravelCheckin.quest_id == checkin.quest_id
+    ).first()
     if existing:
         raise ValueError("Already checked in at this location")
-    db_checkin = models.TravelCheckin(user_id=user_id, quest_id=checkin.quest_id, lat=checkin.lat, lng=checkin.lng)
+    
+    # Create checkin record
+    db_checkin = models.TravelCheckin(
+        user_id=user_id, 
+        quest_id=checkin.quest_id, 
+        lat=checkin.lat, 
+        lng=checkin.lng
+    )
     db.add(db_checkin)
-    pet.strength = min(pet.strength + 15, 120)
-    pet.mood = min(pet.mood + 10, 100)
     db.commit()
     db.refresh(db_checkin)
-    db.refresh(pet)
-    return {"pet": pet, "checkin": db_checkin}
+    
+    # Apply rewards using update_pet_stats for proper level-up logic
+    result = update_pet_stats(
+        db=db,
+        pet=pet,
+        strength=15,
+        stamina=0,
+        mood=10
+    )
+    
+    return {"pet": result["pet"], "checkin": db_checkin}
