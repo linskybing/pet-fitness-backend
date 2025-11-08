@@ -34,7 +34,7 @@ class UserBase(BaseModel):
     pass
 
 class UserCreate(BaseModel):
-    user_id: str  # TownPass ID or custom ID
+    user_id: int
     pet_name: str  # Pet name is required
 
 class ExerciseLogBase(BaseModel):
@@ -84,7 +84,7 @@ class Pet(PetBase):
 class ExerciseLog(ExerciseLogBase):
     id: int
     created_at: datetime
-    user_id: str  # Changed to string to match User.id
+    user_id: int
     pet_id: int
     
     class Config:
@@ -99,7 +99,7 @@ class Quest(QuestBase):
 class UserQuest(BaseModel):
     id: int
     quest_id: int
-    user_id: str  # Changed to string to match User.id
+    user_id: int
     date: datetime
     is_completed: bool
     quest: Quest # Nested display for quest details
@@ -124,7 +124,7 @@ class Attraction(AttractionBase):
 
 class TravelCheckin(TravelCheckinBase):
     id: int
-    user_id: str
+    user_id: int
     completed_at: datetime
     
     class Config:

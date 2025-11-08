@@ -16,7 +16,7 @@ class PetStage(int, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True)  # Changed to String to accept TownPass ID
+    id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Create relationship with Pet
@@ -54,7 +54,7 @@ class Pet(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Create relationship with User
-    owner_id = Column(String, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="pet")
     
     # Create relationship with ExerciseLog
@@ -69,7 +69,7 @@ class ExerciseLog(Base):
     volume = Column(Float) # Exercise volume (scalar)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    user_id = Column(String, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
     pet_id = Column(Integer, ForeignKey("pets.id"))
 
     user = relationship("User", back_populates="exercise_logs")
@@ -93,7 +93,7 @@ class UserQuest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     quest_id = Column(Integer, ForeignKey("quests.id"))
-    user_id = Column(String, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
     date = Column(DateTime(timezone=True), server_default=func.now())
     is_completed = Column(Boolean, default=False)
 
@@ -105,7 +105,7 @@ class TravelCheckin(Base):
     __tablename__ = "travel_checkins"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
     quest_id = Column(String, index=True)  # ID from frontend JSON (e.g., "taipei-101")
     completed_at = Column(DateTime(timezone=True), server_default=func.now())
     lat = Column(Float)  # Latitude where checkin occurred

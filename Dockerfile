@@ -19,9 +19,12 @@ COPY . .
 COPY startup.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 
-# 7. Expose the port the app runs on
-EXPOSE 8000
+# 7. Expose port 8080 (Cloud Run default, but will use $PORT env var at runtime)
+EXPOSE 8080
 
-# 8. Define the command to run your application using the startup script
-# This script ensures the DB is ready before launching the app.
+# 8. Set default PORT environment variable (Cloud Run will override this)
+ENV PORT=8080
+
+# 9. Define the command to run your application using the startup script
+# The script will use the $PORT environment variable provided by Cloud Run
 CMD ["start.sh"]
