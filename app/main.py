@@ -16,16 +16,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Add CORS middleware
+# Add CORS middleware - must be configured before routes
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://tamagotchi-city.vercel.app",
-        "http://localhost:8080"  # 開發環境
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when allow_origins is ["*"]
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # ==================
